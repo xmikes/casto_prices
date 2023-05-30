@@ -1,0 +1,27 @@
+{
+  "name": "Casto Prices v2",
+  "version": "2.0",
+  "description": "Checks prices in different stores for selected product on Castorama site.",
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "https://api.kingfisher.com/*"
+  ],
+  "page_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "logo16.png"
+    }
+  },
+  "manifest_version": 2,
+  "icons": {
+    "16": "logo16.png",
+    "48": "logo48.png",
+    "128": "logo128.png"
+  }
+}
