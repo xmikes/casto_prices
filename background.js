@@ -14,14 +14,32 @@ const checkPrice = 'products/CAPL?filter[ean]={{ean}}&storeId={{storeId}}'
 
 let currentProgressCollection;
 
-chrome.storage.local.get(['currentProgressCollection'], item => {
-  currentProgressCollection = item.currentProgressCollection || [];
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.get(['currentProgressCollection'], (item) => {
+    currentProgressCollection = item.currentProgressCollection || [];
+  });
 });
 
-chrome.tabs.onUpdated.addListener(function (updatedTabId, changeInfo, tab) {
-  if (tab.active && changeInfo.status == "complete") {
-    chrome.pageAction.show(updatedTabId);
+function updatePopupForTab(tabId) {
+  chrome.tabs.get(tabId, (tab) => {
+    if (tab?.url?.includes('castorama.pl')) {
+      chrome.action.setPopup({ tabId, popup: 'popup.html' });
+      chrome.action.setIcon({ tabId, path: 'logo16.png' });
+    } else {
+      chrome.action.setPopup({ tabId, popup: '' });
+      chrome.action.setIcon({ tabId, path: 'logo16inactive.png' });
+    }
+  });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete') {
+    updatePopupForTab(tabId);
   }
+});
+
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  updatePopupForTab(tabId);
 });
 
 const getUrl = function (ean, city) {
@@ -29,7 +47,7 @@ const getUrl = function (ean, city) {
   return url.replace('{{ean}}', ean);
 }
 
-const getAvail = (ean, prodName, tabId) => {
+const getAvail = (ean, prodName, tabId, sendResponse) => {
   const storeList = [];
   let completedCount = 0;
 
@@ -69,7 +87,7 @@ const getAvail = (ean, prodName, tabId) => {
   const interval = setInterval(() => {
     if (completedCount === Object.keys(checkAvail).length) {
       clearInterval(interval);
-      getPrices(tabId, ean, prodName, storeList);
+      getPrices(tabId, ean, prodName, storeList, sendResponse);
     }
   }, 500);
 };
@@ -79,7 +97,7 @@ const getPriceUrl = function (ean, storeId) {
   return url.replace('{{ean}}', ean).replace('{{storeId}}', storeId);
 }
 
-function getPrices(tabId, ean, prodName, storeList) {
+function getPrices(tabId, ean, prodName, storeList, sendResponse) {
   const prices = [];
   const allStoresCount = storeList.length;
   let processedStores = 0;
@@ -112,6 +130,7 @@ function getPrices(tabId, ean, prodName, storeList) {
           }
         );
       }, 200);
+      sendResponse();
       return;
     }
 
@@ -148,23 +167,27 @@ function getPrices(tabId, ean, prodName, storeList) {
         processedStores++;
 
         // Status update START
-        if (allStoresCount === processedStores) {
-          currentProgressCollection = currentProgressCollection.filter(item => item.name !== prodName);
-        } else {
-          let currentProgressItem = currentProgressCollection.filter(i => i.name === prodName)[0];
+        chrome.storage.local.get(['currentProgressCollection'], (item) => {
+          let currentProgressCollection = item.currentProgressCollection || [];
 
-          if (!currentProgressItem) {
-            currentProgressItem = {
-              name: prodName,
-              all: allStoresCount
-            };
-            currentProgressCollection.push(currentProgressItem);
+          if (allStoresCount === processedStores) {
+            currentProgressCollection = currentProgressCollection.filter(item => item.name !== prodName);
+          } else {
+            let currentProgressItem = currentProgressCollection.find(i => i.name === prodName);
+
+            if (!currentProgressItem) {
+              currentProgressItem = {
+                name: prodName,
+                all: allStoresCount
+              };
+              currentProgressCollection.push(currentProgressItem);
+            }
+
+            currentProgressItem.ready = processedStores;
           }
 
-          currentProgressItem.ready = processedStores;
-        }
-
-        chrome.storage.local.set({ currentProgressCollection });
+          chrome.storage.local.set({ currentProgressCollection });
+        });
         // Status update END
 
         setTimeout(getPriceForOne, 50);
@@ -181,35 +204,20 @@ function getPrices(tabId, ean, prodName, storeList) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.name === 'loadPricesPage') {
-    chrome.tabs.create({
-      active: true,
-      url: 'prices.html',
-      index: sender.tab.index + 1
-    }, tab => {
-
-      chrome.tabs.onUpdated.addListener(function (updatedTabId, changeInfo) {
-        if (changeInfo.status == "complete" && updatedTabId == tab.id) {
-          var tabWindow = chrome.extension.getViews({
-            tabId: tab.id,
-            type: "tab"
-          })[0];
-
-          var pricesList = message.pricesList;
-          var productName = message.productName;
-
-          var html = `
-            <p style="font: 25px monospace; white-space: pre;">${productName}</p>
-            <p style="font: 15px monospace; white-space: pre;">${pricesList.join('<br/>')}</p>`;
-
-          tabWindow.document.getElementsByClassName('content')[0].innerHTML = html;
-          tabWindow.document.title = 'Prices for: ' + productName;
-        }
+    chrome.storage.local.set({
+      pricesList: message.pricesList,
+      productName: message.productName
+    }, () => {
+      chrome.tabs.create({
+        active: true,
+        url: 'prices.html',
+        index: sender.tab.index + 1
       });
-
     });
   }
 
   if (message.name === 'getAvail') {
-    getAvail(message.ean, message.prodName, sender.tab.id);
-  }
+    getAvail(message.ean, message.prodName, sender.tab.id, sendResponse);
+    return true;
+  } 
 });

@@ -1,24 +1,26 @@
 {
-  "name": "Casto Prices v2",
-  "version": "2.0",
+  "name": "Casto Prices v2.1",
+  "version": "2.1",
   "description": "Checks prices in different stores for selected product on Castorama site.",
+  "manifest_version": 3,
   "background": {
-    "scripts": [
-      "background.js"
-    ]
+    "service_worker": "background.js"
   },
   "permissions": [
-    "activeTab",
     "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.castorama.pl/*",
     "https://api.kingfisher.com/*"
   ],
-  "page_action": {
+  "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "logo16.png"
+      "16": "logo16inactive.png"
     }
   },
-  "manifest_version": 2,
   "icons": {
     "16": "logo16.png",
     "48": "logo48.png",

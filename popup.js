@@ -21,21 +21,31 @@ function getCurrentTab(callback) {
 
 function displayValidMsg(extraScript) {
   getCurrentTab(tab => {
-    if (!tab.url || tab.url.indexOf('www.castorama.pl') === -1) {
+    if (!tab || !tab.url || tab.url.indexOf('www.castorama.pl') === -1) {
       msg.innerHTML = 'Przejdź&nbsp;na <a target="_blank" href="https://www.castorama.pl">www.castorama.pl</a>';
     } else {
-
-      chrome.tabs.executeScript(tab.id, { file: "jquery-3.6.0.slim.js" }, function () {
-        chrome.tabs.executeScript(tab.id, { file: "testProductPage.js" }, function (result) {
-          if (result && result[0]) {
+      
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['jquery-3.6.0.slim.js']
+      }).then(() => {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['testProductPage.js']
+        }).then((data) => {
+          if (data?.[0]?.result) {
             msg.innerHTML = 'Proszę&nbsp;czekaj...';
-            extraScript && chrome.tabs.executeScript(tab.id, { file: extraScript });
+            if (extraScript) {
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: [extraScript]
+              });
+            }
           } else {
             msg.innerHTML = 'Przejdź&nbsp;na stronę&nbsp;produktu!';
           }
         });
       });
-
     }
   });
 }
@@ -66,7 +76,6 @@ setInterval(() => {
     const descHTML = [];
 
     currentProgressCollection.forEach(item => {
-      const fixedName = item.name.replace(/\s/g, '');
       descHTML.push(`&#10140; ${item.name} - <b>${item.ready}/${item.all}</b>`.replace(/\s/g, '&nbsp;'));
     });
 
@@ -86,10 +95,16 @@ getCurrentTab(tab => {
     msg.innerHTML = 'Przejdź&nbsp;na <a target="_blank" href="https://www.castorama.pl">www.castorama.pl</a>';
     return;
   }
-
-  chrome.tabs.executeScript(tab.id, { file: "jquery-3.6.0.slim.js" }, function () {
-    chrome.tabs.executeScript(tab.id, { file: "getProdName.js" }, prodNameRes => {
-      const prodName = prodNameRes && prodNameRes[0];
+  
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['jquery-3.6.0.slim.js']
+  }).then(() => {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['getProdName.js']
+    }).then((prodNameRes) => {
+      const prodName = prodNameRes?.[0].result;
 
       if (!prodName || currentProgressCollection.some(item => item.name === prodName)) {
         return;
