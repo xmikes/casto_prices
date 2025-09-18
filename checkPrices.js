@@ -5,7 +5,7 @@ function getPricesNew() {
   }
 
   var psid = getProductSku();
-  const prodName = $('#product-title').html().trim();
+  const prodName = $('h1[data-testid="product-name"]').html().trim();
 
   chrome.runtime.sendMessage({
     name: 'getAvail',

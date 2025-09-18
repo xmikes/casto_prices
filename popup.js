@@ -31,7 +31,7 @@ function displayValidMsg(extraScript) {
       }).then(() => {
         chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          files: ['testProductPage.js']
+          files: ['getProdName.js']
         }).then((data) => {
           if (data?.[0]?.result) {
             msg.innerHTML = 'Proszę&nbsp;czekaj...';

@@ -129,8 +129,8 @@ function getPrices(tabId, ean, prodName, storeList, sendResponse) {
             prices: prices
           }
         );
+        sendResponse();
       }, 200);
-      sendResponse();
       return;
     }
 
@@ -186,11 +186,11 @@ function getPrices(tabId, ean, prodName, storeList, sendResponse) {
             currentProgressItem.ready = processedStores;
           }
 
-          chrome.storage.local.set({ currentProgressCollection });
+          chrome.storage.local.set({ currentProgressCollection }, () => {
+            setTimeout(getPriceForOne, 50);
+          });
         });
         // Status update END
-
-        setTimeout(getPriceForOne, 50);
       }).catch(error => {
         console.log(`problem with GET request: ${error.message}`);
       });
